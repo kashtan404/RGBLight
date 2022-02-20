@@ -12,6 +12,7 @@ void LEDon() {
 void LEDoff() {
   ONflag = false;
   strip.setPower(0);
+  strip.setBrightness(0);
 }
 
 void controlTick() {
@@ -19,53 +20,54 @@ void controlTick() {
 
   // ON/OFF
   if (enc.held()) {
-    toggleFlag = !toggleFlag;
-    if (toggleFlag) LEDoff();
+    if (ONflag) LEDoff();
     else LEDon();
   }
-
-  // Brightness
-  if (enc.isTurn() && !changeMode && !changeSettings) {
-    eeprTimer = millis();
-    eeprFlag = true;
-    if (enc.right()) {
-      if (enc.fast()) {
-        thisBright += 5;
+  
+  if (enc.turn()) {
+    // Brightness
+    if (!changeMode && !changeSettings) {
+      eeprTimer = millis();
+      eeprFlag = true;
+      if (enc.right()) {
+        if (enc.fast()) {
+          thisBright += 5;
+        }
+        thisBright += 1;
       }
-      thisBright += 1;
+      if (enc.left()) {
+        if (enc.fast()) {
+          thisBright -= 5;
+        }
+        thisBright -= 1;
+      }
+      thisBright = constrain(thisBright, 0, 255);
+      modeSettings[4] = thisBright;
+      strip.setBrightness(thisBright);
     }
-    if (enc.left()) {
-      if (enc.fast()) {
-        thisBright -= 5;
-      }
-      thisBright -= 1;
+     //Modes
+    if (changeMode) {
+      if (enc.right())
+        incr(&modeNum, 1, MODE_AMOUNT);
+      if (enc.left())
+        incr(&modeNum, -1, MODE_AMOUNT);
+      modeSettings[5] = modeNum;
     }
-    thisBright = constrain(thisBright, 0, 255);
-    strip.setBrightness(thisBright);
-  }
-
-  //Modes
-  if (enc.isTurn() && changeSettings) {
-    if (enc.right())
-      incr(&modeNum, 1, MODE_AMOUNT);
-    if (enc.left())
-      incr(&modeNum, -1, MODE_AMOUNT);
-  }
-
-  // Mode settings
-  if (enc.isTurn() && changeMode) {
-    if (enc.right()) {
-      if (enc.fast()) {
-          incr(&modeSettings[invSet], 10, maxVals[startFrom[modeNum] + invSet]);
+    // Mode settings
+    if (changeSettings) {
+      if (enc.right()) {
+        if (enc.fast()) {
+          incr(&modeSettings[modeNum], 10, maxVals[modeNum]);
+        }
+        incr(&modeSettings[modeNum], 1, maxVals[modeNum]);
       }
-      incr(&modeSettings[invSet], 1, maxVals[startFrom[modeNum] + invSet]);
-    }
-
-    if (enc.left()) {
-      if (enc.fast()) {
-          incr(&modeSettings[invSet], -10, maxVals[startFrom[modeNum] + invSet]);
+  
+      if (enc.left()) {
+        if (enc.fast()) {
+          incr(&modeSettings[modeNum], -10, maxVals[modeNum]);
+        }
+        incr(&modeSettings[modeNum], -1, maxVals[modeNum]);
       }
-      incr(&modeSettings[invSet], -1, maxVals[startFrom[modeNum] + invSet]);
     }
   }
 
@@ -88,9 +90,11 @@ void controlTick() {
       changeSettings = false;
       break;
   }
+
   // Write settings
   if (eeprFlag && millis() - eeprTimer > EEPR_TIME) {
     eeprFlag = false;
     writeSettings();
   }
+  
 }
